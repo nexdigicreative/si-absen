@@ -17,7 +17,8 @@
       "xml",
       "pdo_mysql",
       "redis",
-      "gd"
+      "gd",
+      "zip"
     ]
   }
 }
