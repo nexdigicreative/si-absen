@@ -13,21 +13,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        if (!$this->app->runningInConsole()) {
-            // @active('route.name') → 'active' class if current route matches
-            Blade::directive('active', function ($expression) {
-                return "<?php echo (request()->routeIs({$expression})) ? 'active' : ''; ?>";
-            });
+        // @active('route.name') → 'active' class if current route matches
+        Blade::directive('active', function ($expression) {
+            return "<?php echo (request()->routeIs({$expression})) ? 'active' : ''; ?>";
+        });
 
-            // @role('role_name') → check if user has given role
-            // Supports comma-separated: @role('admin,guru')
-            Blade::directive('role', function ($expression) {
-                return "<?php if(auth()->check() && auth()->user()->hasRole(array_map('trim', explode(',', {$expression})))): ?>";
-            });
-            Blade::directive('endrole', function () {
-                return "<?php endif; ?>";
-            });
-        }
+        // @role('role_name') → check if user has given role
+        // Supports comma-separated: @role('admin,guru')
+        Blade::directive('role', function ($expression) {
+            return "<?php if(auth()->check() && auth()->user()->hasRole(array_map('trim', explode(',', {$expression})))): ?>";
+        });
+        Blade::directive('endrole', function () {
+            return "<?php endif; ?>";
+        });
 
         // Carbon locale
         \Carbon\Carbon::setLocale('id');
