@@ -14,12 +14,16 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $query = Student::with(['class.academicYear'])
+            ->withCount(['attendanceDetails as attendance_details_count'])
+            ->withCount(['attendanceDetails as present_count' => fn($q) => $q->whereIn('status', ['hadir', 'terlambat'])])
             ->when(
                 $request->search,
                 fn($q) =>
-                $q->where('name', 'like', "%{$request->search}%")
-                    ->orWhere('nis', 'like', "%{$request->search}%")
-                    ->orWhere('nisn', 'like', "%{$request->search}%")
+                $q->where(function($sub) use ($request) {
+                    $sub->where('name', 'like', "%{$request->search}%")
+                        ->orWhere('nis', 'like', "%{$request->search}%")
+                        ->orWhere('nisn', 'like', "%{$request->search}%");
+                })
             )
             ->when($request->class_id, fn($q) => $q->where('class_id', $request->class_id))
             ->when($request->gender, fn($q) => $q->where('gender', $request->gender))
@@ -49,22 +53,28 @@ class StudentController extends Controller
                 ->store('students/photos', 'public');
         }
 
-        // Create linked user account if requested
+        // Create linked user account if requested with random password
         if ($request->boolean('create_account')) {
+            $defaultPassword = \Illuminate\Support\Str::random(8);
             $user = User::create([
                 'username' => $data['nis'],
-                'password' => bcrypt($data['nis']),
+                'password' => bcrypt($defaultPassword),
                 'name' => $data['name'],
                 'email' => $data['parent_email'] ?? null,
                 'role' => 'siswa',
             ]);
             $data['user_id'] = $user->id;
+            session()->flash('temp_password', $defaultPassword);
         }
 
         Student::create($data);
 
-        return redirect()->route('students.index')
-            ->with('success', "Siswa {$data['name']} berhasil ditambahkan.");
+        $msg = "Siswa {$data['name']} berhasil ditambahkan.";
+        if (session('temp_password')) {
+            $msg .= " Akun dibuat dengan Username: {$data['nis']} dan Password: " . session('temp_password');
+        }
+
+        return redirect()->route('students.index')->with('success', $msg);
     }
 
     public function show(Student $student)

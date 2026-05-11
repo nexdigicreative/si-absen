@@ -14,15 +14,8 @@ class RoleMiddleware
             return redirect()->route('login');
         }
 
-        $user = auth()->user();
-
-        if (!$user->status) {
-            auth()->logout();
-            return redirect()->route('login')
-                ->withErrors(['status' => 'Akun Anda telah dinonaktifkan. Hubungi administrator.']);
-        }
-
-        if (!$user->hasRole($roles)) {
+        // Active check is handled by CheckActiveUser middleware
+        if (!auth()->user()->hasRole($roles)) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 

@@ -26,17 +26,14 @@ class QrAttendanceController extends Controller
      */
     public function processCardScan(Request $request)
     {
-        $payload = $request->input('qr_code'); // the encrypted payload
+        $payload = $request->input('qr_code');
         
         try {
             try {
-                // Try decrypting new secure JSON format
                 $data = json_decode(Crypt::decryptString($payload), true);
                 $studentId = $data['id'] ?? null;
-                $nis = $data['nis'] ?? null;
                 $student = $studentId ? Student::find($studentId) : null;
             } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                // Fallback to legacy format: "SIABSEN-{nis}"
                 if (str_starts_with($payload, 'SIABSEN-')) {
                     $nis = str_replace('SIABSEN-', '', $payload);
                     $student = Student::where('nis', $nis)->first();
@@ -46,20 +43,21 @@ class QrAttendanceController extends Controller
             }
 
             if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Format QR tidak valid / Siswa tidak ditemukan.']);
+                return response()->json(['success' => false, 'message' => 'Data siswa tidak ditemukan.']);
             }
 
-            // Get or create today's attendance for the student's class
+            // Get homeroom teacher as default teacher for this attendance record
+            $teacherId = $student->class?->teacher_id ?? 1;
+
             $attendance = Attendance::firstOrCreate(
                 [
                     'date' => today()->toDateString(),
                     'class_id' => $student->class_id,
                     'session' => 'pagi'
                 ],
-                ['teacher_id' => 1] // System/Admin default
+                ['teacher_id' => $teacherId]
             );
 
-            // Check if already checked in
             $existing = AttendanceDetail::where('attendance_id', $attendance->id)
                 ->where('student_id', $student->id)
                 ->first();
@@ -67,11 +65,10 @@ class QrAttendanceController extends Controller
             if ($existing) {
                 return response()->json([
                     'success' => false, 
-                    'message' => "{$student->name} sudah absen hari ini."
+                    'message' => "{$student->name} sudah tercatat hadir."
                 ]);
             }
 
-            // Determine status based on time (late limit)
             $lateLimit = config('attendance.late_limit', '07:15:00');
             $status = now()->format('H:i:s') > $lateLimit ? 'terlambat' : 'hadir';
 
@@ -84,11 +81,11 @@ class QrAttendanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Absen berhasil: {$student->name} (" . strtoupper($status) . ")"
+                'message' => "Berhasil: {$student->name} (" . strtoupper($status) . ")"
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan sistem.']);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
         }
     }
 
@@ -97,14 +94,29 @@ class QrAttendanceController extends Controller
      */
     public function generate(Request $request)
     {
-        $classes = Classes::orderBy('name')->get();
+        $user = auth()->user();
+        
+        // If teacher, prioritize their classes
+        if ($user->isGuru()) {
+            $classes = Classes::where('teacher_id', $user->teacher?->id)->orderBy('name')->get();
+            if ($classes->isEmpty()) {
+                $classes = Classes::orderBy('name')->get();
+            }
+        } else {
+            $classes = Classes::orderBy('name')->get();
+        }
+
         $classId = $request->get('class_id');
         $date = today()->toDateString();
         
         $qrString = null;
         if ($classId) {
-            // The QR code contains the class ID and date, encrypted to prevent spoofing
-            $payload = json_encode(['class_id' => $classId, 'date' => $date]);
+            $payload = json_encode([
+                'class_id' => (int)$classId, 
+                'date' => $date,
+                'teacher_id' => $user->teacher?->id ?? 1,
+                'ts' => time() // entropy
+            ]);
             $qrString = Crypt::encryptString($payload);
         }
 
@@ -116,6 +128,9 @@ class QrAttendanceController extends Controller
      */
     public function scanPage()
     {
+        if (!auth()->user()->isSiswa()) {
+            return redirect()->route('dashboard')->with('error', 'Hanya siswa yang dapat mengakses halaman scan.');
+        }
         return view('attendance.qr.scan-page');
     }
 
@@ -125,27 +140,28 @@ class QrAttendanceController extends Controller
     public function processScan(Request $request)
     {
         $payload = $request->input('qr_code');
-        $student = auth()->user()->student;
+        $user = auth()->user();
+        $student = $user->student;
 
         if (!$student) {
-            return response()->json(['success' => false, 'message' => 'Bukan akun siswa.']);
+            return response()->json(['success' => false, 'message' => 'Akun Anda tidak tertaut dengan data siswa.']);
         }
 
         try {
-            try {
-                $data = json_decode(Crypt::decryptString($payload), true);
-                $classId = $data['class_id'] ?? null;
-                $date = $data['date'] ?? null;
-            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                return response()->json(['success' => false, 'message' => 'QR Code tidak valid atau sudah kedaluwarsa.']);
-            }
+            $data = json_decode(Crypt::decryptString($payload), true);
+            $classId = $data['class_id'] ?? null;
+            $date = $data['date'] ?? null;
+            $teacherId = $data['teacher_id'] ?? 1;
+            
+            // Validate QR age (optional security: e.g., max 5 minutes old if real-time)
+            // if (time() - ($data['ts'] ?? 0) > 300) ...
 
             if ($classId != $student->class_id) {
-                return response()->json(['success' => false, 'message' => 'Ini bukan QR Code kelas Anda.']);
+                return response()->json(['success' => false, 'message' => 'Ini bukan QR Code untuk kelas Anda.']);
             }
 
             if ($date != today()->toDateString()) {
-                return response()->json(['success' => false, 'message' => 'QR Code sudah kedaluwarsa (berbeda hari).']);
+                return response()->json(['success' => false, 'message' => 'QR Code ini sudah kedaluwarsa.']);
             }
 
             $attendance = Attendance::firstOrCreate(
@@ -154,7 +170,7 @@ class QrAttendanceController extends Controller
                     'class_id' => $classId,
                     'session' => 'pagi'
                 ],
-                ['teacher_id' => 1]
+                ['teacher_id' => $teacherId]
             );
 
             $existing = AttendanceDetail::where('attendance_id', $attendance->id)
@@ -162,7 +178,7 @@ class QrAttendanceController extends Controller
                 ->first();
 
             if ($existing) {
-                return response()->json(['success' => false, 'message' => 'Anda sudah merekam absen hari ini.']);
+                return response()->json(['success' => false, 'message' => 'Anda sudah melakukan absen hari ini.']);
             }
 
             $lateLimit = config('attendance.late_limit', '07:15:00');
@@ -175,12 +191,12 @@ class QrAttendanceController extends Controller
                 'check_in' => now()->format('H:i:s')
             ]);
 
-            return response()->json(['success' => true, 'message' => "Absen kelas berhasil dicatat (" . strtoupper($status) . ")."]);
+            return response()->json(['success' => true, 'message' => "Berhasil! Kehadiran dicatat sebagai " . strtoupper($status)]);
 
         } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            return response()->json(['success' => false, 'message' => 'QR Code tidak dikenali atau telah dimodifikasi.']);
+            return response()->json(['success' => false, 'message' => 'QR Code tidak valid atau sudah kedaluwarsa.']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan internal.']);
+            return response()->json(['success' => false, 'message' => 'Gagal memproses absen: ' . $e->getMessage()]);
         }
     }
 
@@ -210,7 +226,7 @@ class QrAttendanceController extends Controller
 
         $details = AttendanceDetail::with('student:id,name,nis')
             ->where('attendance_id', $attendance->id)
-            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->get()
             ->map(function ($d) {
                 return [

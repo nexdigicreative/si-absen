@@ -20,21 +20,34 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1a56db 100%);
+            background: url('/assets/images/login-bg.png') no-repeat center center fixed;
+            background-size: cover;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 58, 138, 0.8) 100%);
+            z-index: 0;
         }
 
         .login-wrap {
+            position: relative;
+            z-index: 1;
             width: 420px;
             max-width: 100%;
-            background: rgba(255, 255, 255, .04);
-            border: 1px solid rgba(255, 255, 255, .12);
-            border-radius: 20px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .15);
+            border-radius: 24px;
             padding: 40px;
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(25px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .login-logo {
@@ -270,10 +283,11 @@
             </button>
         </form>
 
+        @if(config('app.debug'))
         <hr class="divider">
 
         <div style="color:rgba(255,255,255,.5);font-size:11.5px;font-weight:600;margin-bottom:8px;text-align:center">
-            DEMO CEPAT</div>
+            DEMO CEPAT (Dev Only)</div>
         <div class="quick-login">
             <button class="quick-btn" onclick="fillLogin('admin','admin123')">👑 Admin</button>
             <button class="quick-btn" onclick="fillLogin('siti.rahayu','guru123')">📚 Guru</button>
@@ -282,6 +296,7 @@
         </div>
 
         <div class="hint">Demo: Klik tombol di atas untuk login cepat</div>
+        @endif
     </div>
 
     <script>

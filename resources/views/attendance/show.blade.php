@@ -10,9 +10,11 @@
             <span class="fw-bold" style="font-size:16px">{{ $attendance->date->translatedFormat('l, d F Y') }}</span>
         </div>
         <div class="d-flex gap-2">
+            @role('admin,guru')
             <a href="{{ route('attendance.edit', $attendance) }}" class="btn btn-primary">
                 <i class="bi bi-pencil me-1"></i>Edit Absensi
             </a>
+            @endrole
             <a href="{{ route('attendance.index') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Kembali
             </a>

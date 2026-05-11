@@ -39,11 +39,12 @@ class TeacherController extends Controller
             $data['photo'] = $request->file('photo')->store('teachers/photos', 'public');
         }
 
-        // Auto-create user account
+        // Auto-create user account with random password
         $username = $data['nip'] ?? strtolower(str_replace(' ', '.', $data['name']));
+        $defaultPassword = \Illuminate\Support\Str::random(8);
         $user = User::create([
             'username' => $username,
-            'password' => bcrypt('guru123'),
+            'password' => bcrypt($defaultPassword),
             'name' => $data['name'],
             'email' => $data['email'] ?? null,
             'role' => 'guru',
@@ -53,7 +54,7 @@ class TeacherController extends Controller
         Teacher::create($data);
 
         return redirect()->route('teachers.index')
-            ->with('success', "Guru {$data['name']} berhasil ditambahkan. Password default: guru123");
+            ->with('success', "Guru {$data['name']} berhasil ditambahkan. Username: {$username}, Password: {$defaultPassword}");
     }
 
     public function show(Teacher $teacher)

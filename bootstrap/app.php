@@ -21,10 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.active' => CheckActiveUser::class,
         ]);
 
-        // Add to web group
-        $middleware->web(append: [
-            CheckActiveUser::class,
-        ]);
+        // CheckActiveUser applied via route middleware 'check.active' — not duplicated here
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {

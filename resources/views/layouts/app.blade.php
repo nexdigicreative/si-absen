@@ -463,7 +463,7 @@
                 <div class="logo-icon">S</div>
                 <div>
                     <div class="logo-text">SIABSEN</div>
-                    <div class="logo-sub">v2.0 · {{ date('Y') }}</div>
+                    <div class="logo-sub">v3.0 · {{ date('Y') }}</div>
                 </div>
             </div>
         </div>
@@ -472,8 +472,8 @@
             <div class="d-flex align-items-center gap-2">
                 <span style="font-size:20px">🏫</span>
                 <div>
-                    <div class="school-badge-name">{{ config('school.name', 'Nama Sekolah') }}</div>
-                    <div class="school-badge-type">SMA Negeri</div>
+                    <div class="school-badge-name">{{ config('school.name', 'SMA Jakarta') }}</div>
+                    <div class="school-badge-type">SMA</div>
                 </div>
             </div>
         </div>
@@ -547,6 +547,21 @@
         @endrole
 
         {{-- ═══════════════════════════════════════════
+            MONITORING — Kepala Sekolah
+        ═══════════════════════════════════════════ --}}
+        @role('kepala_sekolah')
+            <div class="nav-section">
+                <div class="nav-label">Monitoring</div>
+                <a href="{{ route('attendance.index') }}" class="nav-link-item @active('attendance.index')">
+                    <i class="bi bi-clipboard-check nav-icon"></i> Daftar Absensi
+                </a>
+                <a href="{{ route('schedules.index') }}" class="nav-link-item @active('schedules.*')">
+                    <i class="bi bi-calendar3 nav-icon"></i> Jadwal Pelajaran
+                </a>
+            </div>
+        @endrole
+
+        {{-- ═══════════════════════════════════════════
             DATA MASTER — Admin only
         ═══════════════════════════════════════════ --}}
         @role('admin')
@@ -572,6 +587,9 @@
                 <div class="nav-label">Laporan</div>
                 <a href="{{ route('reports.index') }}" class="nav-link-item @active('reports.index')">
                     <i class="bi bi-bar-chart nav-icon"></i> Laporan Absensi
+                </a>
+                <a href="{{ route('reports.daily') }}" class="nav-link-item @active('reports.daily')">
+                    <i class="bi bi-calendar-date nav-icon"></i> Laporan Harian
                 </a>
                 <a href="{{ route('reports.recap') }}" class="nav-link-item @active('reports.recap')">
                     <i class="bi bi-table nav-icon"></i> Rekap Bulanan
@@ -652,7 +670,7 @@
         </main>
 
         <footer class="text-center py-3 text-muted" style="font-size:12px;border-top:1px solid #e2e8f0">
-            SIABSEN &copy; {{ date('Y') }} · {{ config('school.name') }} · v2.0
+            SIABSEN &copy; {{ date('Y') }} · {{ config('school.name') }} · v3.0
         </footer>
     </div>
 

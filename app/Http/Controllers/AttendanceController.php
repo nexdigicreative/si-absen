@@ -72,15 +72,19 @@ class AttendanceController extends Controller
                 ['teacher_id' => Auth::user()->teacher?->id ?? 1]
             );
 
+            $detailsData = [];
             foreach ($request->details as $studentId => $detail) {
-                AttendanceDetail::updateOrCreate(
-                    ['attendance_id' => $attendance->id, 'student_id' => $studentId],
-                    [
-                        'status' => $detail['status'],
-                        'check_in' => $detail['check_in'] ?? null,
-                        'notes' => $detail['notes'] ?? null,
-                    ]
-                );
+                $detailsData[] = [
+                    'attendance_id' => $attendance->id,
+                    'student_id'    => (int) $studentId,
+                    'status'        => $detail['status'],
+                    'check_in'      => $detail['check_in'] ?? null,
+                    'notes'         => $detail['notes'] ?? null,
+                ];
+            }
+
+            if (!empty($detailsData)) {
+                AttendanceDetail::upsert($detailsData, ['attendance_id', 'student_id'], ['status', 'check_in', 'notes']);
             }
 
             // Notify parents of alfa students (queued)
@@ -115,11 +119,19 @@ class AttendanceController extends Controller
     public function update(StoreAttendanceRequest $request, Attendance $attendance)
     {
         DB::transaction(function () use ($request, $attendance) {
+            $detailsData = [];
             foreach ($request->details as $studentId => $detail) {
-                AttendanceDetail::updateOrCreate(
-                    ['attendance_id' => $attendance->id, 'student_id' => $studentId],
-                    ['status' => $detail['status'], 'check_in' => $detail['check_in'] ?? null, 'notes' => $detail['notes'] ?? null]
-                );
+                $detailsData[] = [
+                    'attendance_id' => $attendance->id,
+                    'student_id'    => (int) $studentId,
+                    'status'        => $detail['status'],
+                    'check_in'      => $detail['check_in'] ?? null,
+                    'notes'         => $detail['notes'] ?? null,
+                ];
+            }
+
+            if (!empty($detailsData)) {
+                AttendanceDetail::upsert($detailsData, ['attendance_id', 'student_id'], ['status', 'check_in', 'notes']);
             }
         });
 
@@ -130,6 +142,10 @@ class AttendanceController extends Controller
     public function myAttendance(Request $request)
     {
         $student = Auth::user()->student;
+        if (!$student) {
+            abort(404, 'Data siswa tidak ditemukan. Hubungi administrator.');
+        }
+
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
 

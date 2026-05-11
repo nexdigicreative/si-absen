@@ -72,7 +72,7 @@ class UserController extends Controller
 
     public function resetPassword(User $user)
     {
-        $newPass = 'siabsen123';
+        $newPass = \Illuminate\Support\Str::random(8);
         $user->update(['password' => Hash::make($newPass)]);
         return back()->with('success', "Password {$user->name} direset ke: {$newPass}");
     }
@@ -86,8 +86,9 @@ class UserController extends Controller
     {
         $user = Auth::user();
         $data = $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => "nullable|email|unique:users,email,{$user->id}",
+            'name'   => 'required|string|max:100',
+            'email'  => "nullable|email|unique:users,email,{$user->id}",
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($request->hasFile('avatar')) {

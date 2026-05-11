@@ -14,37 +14,63 @@ class DashboardController extends Controller
 
     public function index()
     {
-        $today = today();
-        $stats = $this->attendanceService->getTodaySummary();
         $user = auth()->user();
-        $todayStr = (string) now()->format('N'); // 1 = Sen, 7 = Ming
-        
-        $todaySchedules = collect();
-        if ($user->role === 'siswa' && $user->student?->class_id) {
-            $todaySchedules = Schedule::with('teacher')
-                ->where('class_id', $user->student->class_id)
-                ->where('day_of_week', $todayStr)
-                ->orderBy('start_time')->get();
-        } elseif ($user->role === 'guru' && $user->teacher) {
-            $todaySchedules = Schedule::with('class')
-                ->where('teacher_id', $user->teacher->id)
-                ->where('day_of_week', $todayStr)
-                ->orderBy('start_time')->get();
-        }
+        $today = today();
+        $dayOfWeek = (string) now()->format('N'); // 1 = Mon, 7 = Sun
 
-        $monthly = $this->attendanceService->getMonthlyTrend();
+        // ── Common stats for all roles ──
+        $stats = $this->attendanceService->getTodaySummary();
 
+        // ── Role-specific data ──
         $data = [
-            'stats' => $stats,
-            'today_schedules' => $todaySchedules,
-            'monthly_trend' => $monthly,
-            'total_students' => Student::active()->count(),
-            'total_teachers' => Teacher::active()->count(),
-            'total_classes' => Classes::count(),
-            'class_attendance' => $this->attendanceService->getClassAttendanceSummary($today),
-            'low_attendance' => $this->attendanceService->getLowAttendanceStudents(),
-            'recent_activities' => $this->attendanceService->getRecentActivities(),
+            'stats'         => $stats,
+            'monthly_trend' => $this->attendanceService->getMonthlyTrend(),
         ];
+
+        if ($user->isSiswa()) {
+            $student = $user->student;
+            $data['today_schedules'] = $student?->class_id
+                ? Schedule::with('teacher:id,name,photo')
+                    ->where('class_id', $student->class_id)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->orderBy('start_time')->get()
+                : collect();
+
+            // Siswa doesn't need admin-level stats
+            $data['total_students'] = 0;
+            $data['total_teachers'] = 0;
+            $data['total_classes']  = 0;
+            $data['class_attendance'] = collect();
+            $data['low_attendance']   = collect();
+            $data['recent_activities'] = collect();
+
+        } elseif ($user->isGuru()) {
+            $teacher = $user->teacher;
+            $data['today_schedules'] = $teacher
+                ? Schedule::with('class:id,name')
+                    ->where('teacher_id', $teacher->id)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->orderBy('start_time')->get()
+                : collect();
+
+            // Guru sees summary of classes they teach
+            $data['total_students']    = Student::active()->count();
+            $data['total_teachers']    = Teacher::active()->count();
+            $data['total_classes']     = Classes::count();
+            $data['class_attendance']  = $this->attendanceService->getClassAttendanceSummary($today);
+            $data['low_attendance']    = collect(); // Only admin/kepsek see this
+            $data['recent_activities'] = $this->attendanceService->getRecentActivities(5);
+
+        } else {
+            // Admin & Kepala Sekolah — full overview
+            $data['today_schedules']   = collect();
+            $data['total_students']    = Student::active()->count();
+            $data['total_teachers']    = Teacher::active()->count();
+            $data['total_classes']     = Classes::count();
+            $data['class_attendance']  = $this->attendanceService->getClassAttendanceSummary($today);
+            $data['low_attendance']    = $this->attendanceService->getLowAttendanceStudents();
+            $data['recent_activities'] = $this->attendanceService->getRecentActivities();
+        }
 
         return view('dashboard.index', $data);
     }

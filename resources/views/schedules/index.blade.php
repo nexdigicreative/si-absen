@@ -66,8 +66,8 @@
                                 <td style="font-size:13px">{{ $sched->room ?? '-' }}</td>
                                 <td>
                                     @php
-                                        $start = \Carbon\Carbon::createFromFormat('H:i:s', $sched->start_time);
-                                        $end = \Carbon\Carbon::createFromFormat('H:i:s', $sched->end_time);
+                                        $start = \Carbon\Carbon::parse($sched->start_time);
+                                        $end = \Carbon\Carbon::parse($sched->end_time);
                                         $dur = $start->diffInMinutes($end);
                                     @endphp
                                     <span class="badge" style="background:#e8f0fe;color:#1a56db">{{ $dur }} menit</span>

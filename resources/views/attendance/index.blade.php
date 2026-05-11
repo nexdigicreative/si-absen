@@ -6,6 +6,7 @@
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <p class="text-muted mb-0">Semua sesi absensi yang tercatat</p>
+        @role('admin,guru')
         <div class="d-flex gap-2">
             <a href="{{ route('attendance.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i>Input Absensi
@@ -14,14 +15,15 @@
                 <i class="bi bi-qr-code me-1"></i>Generate QR
             </a>
         </div>
+        @endrole
     </div>
 
     {{-- Filter --}}
-    <div class="card mb-4">
-        <div class="card-body py-3">
+    <div class="card mb-4 border-0 shadow-sm" style="border-radius:1rem">
+        <div class="card-body p-3">
             <form method="GET" class="row g-2 align-items-end">
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold text-muted mb-1">Kelas</label>
+                    <label class="form-label small fw-bold text-muted ms-1">Filter Kelas</label>
                     <select name="class_id" class="form-select">
                         <option value="">Semua Kelas</option>
                         @foreach($classes as $c)
@@ -30,86 +32,105 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold text-muted mb-1">Tanggal</label>
+                    <label class="form-label small fw-bold text-muted ms-1">Tanggal Spesifik</label>
                     <input type="date" name="date" class="form-control" value="{{ request('date') }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small fw-semibold text-muted mb-1">Bulan</label>
+                    <label class="form-label small fw-bold text-muted ms-1">Bulan</label>
                     <input type="month" name="month" class="form-control" value="{{ request('month') }}">
                 </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-search me-1"></i>Filter</button>
+                    <button type="submit" class="btn btn-primary w-100 py-2 mt-3 mt-md-0"><i class="bi bi-funnel"></i> Filter</button>
                 </div>
                 <div class="col-md-2">
-                    <a href="{{ route('attendance.index') }}" class="btn btn-outline-secondary w-100 mt-3">Reset</a>
+                    <a href="{{ route('attendance.index') }}" class="btn btn-light w-100 py-2 mt-3 mt-md-0">Reset</a>
                 </div>
             </form>
         </div>
     </div>
 
-    <div class="card">
+    <div class="card border-0 shadow-sm" style="border-radius:1rem; overflow:hidden">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
                     <tr>
-                        <th>#</th>
-                        <th>Tanggal</th>
-                        <th>Kelas</th>
-                        <th>Sesi</th>
-                        <th>Guru</th>
-                        <th>Hadir</th>
-                        <th>Alfa</th>
-                        <th>Sakit</th>
-                        <th>Izin</th>
-                        <th>Aksi</th>
+                        <th class="ps-4 py-3 text-muted fw-bold small">TANGGAL</th>
+                        <th class="py-3 text-muted fw-bold small">KELAS</th>
+                        <th class="py-3 text-muted fw-bold small">SESI</th>
+                        <th class="py-3 text-muted fw-bold small">GURU / PENGAJAR</th>
+                        <th class="py-3 text-muted fw-bold small text-center">STATISTIK KEHADIRAN</th>
+                        <th class="pe-4 py-3 text-muted fw-bold small text-end">AKSI</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($attendances as $i => $att)
+                    @forelse($attendances as $att)
                         <tr>
-                            <td>{{ $attendances->firstItem() + $i }}</td>
-                            <td>
-                                <div class="fw-semibold">{{ $att->date->translatedFormat('d M Y') }}</div>
-                                <div class="text-muted" style="font-size:11px">{{ $att->date->translatedFormat('l') }}</div>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ $att->date->translatedFormat('d F Y') }}</div>
+                                <div class="text-muted small">{{ $att->date->translatedFormat('l') }}</div>
                             </td>
-                            <td><span class="badge" style="background:#e8f0fe;color:#1a56db">{{ $att->class?->name }}</span></td>
                             <td>
-                                <span class="badge {{ $att->session === 'pagi' ? 'bg-warning text-dark' : 'bg-info text-dark' }}">
-                                    {{ ucfirst($att->session) }}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                                    {{ $att->class?->name }}
                                 </span>
                             </td>
-                            <td style="font-size:13px">{{ $att->teacher?->name ?? '-' }}</td>
-                            <td><span class="badge badge-status-hadir">{{ $att->details_count_hadir ?? $att->details->where('status','hadir')->count() }}</span></td>
-                            <td><span class="badge badge-status-alfa">{{ $att->details->where('status','alfa')->count() }}</span></td>
-                            <td><span class="badge badge-status-sakit">{{ $att->details->where('status','sakit')->count() }}</span></td>
-                            <td><span class="badge badge-status-izin">{{ $att->details->where('status','izin')->count() }}</span></td>
                             <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('attendance.show', $att) }}" class="btn btn-sm btn-outline-info" title="Detail"><i class="bi bi-eye"></i></a>
-                                    <a href="{{ route('attendance.edit', $att) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                @if($att->session === 'pagi')
+                                    <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle px-3 py-2 rounded-pill">PAGI</span>
+                                @else
+                                    <span class="badge bg-info bg-opacity-10 text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill">SIANG</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="small fw-bold text-dark">{{ $att->teacher?->name ?? 'System' }}</div>
+                                <div class="text-muted small" style="font-size:11px">NIP: {{ $att->teacher?->nip ?? '-' }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <div class="text-center">
+                                        <div class="small text-muted fw-bold" style="font-size:9px text-transform:uppercase">Hadir</div>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2">{{ $att->details->whereIn('status', ['hadir', 'terlambat'])->count() }}</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="small text-muted fw-bold" style="font-size:9px text-transform:uppercase">Izin/S</div>
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle px-2">{{ $att->details->whereIn('status', ['izin', 'sakit'])->count() }}</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="small text-muted fw-bold" style="font-size:9px text-transform:uppercase">Alfa</div>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-2">{{ $att->details->where('status', 'alfa')->count() }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="pe-4 text-end">
+                                <div class="btn-group shadow-sm rounded-3 overflow-hidden">
+                                    <a href="{{ route('attendance.show', $att) }}" class="btn btn-sm btn-white text-info" title="Detail"><i class="bi bi-eye-fill"></i></a>
+                                    @role('admin,guru')
+                                    <a href="{{ route('attendance.edit', $att) }}" class="btn btn-sm btn-white text-primary" title="Edit"><i class="bi bi-pencil-fill"></i></a>
+                                    @endrole
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
-                                <i class="bi bi-clipboard-x fs-1 d-block mb-2"></i>
-                                Belum ada data absensi.
-                                <a href="{{ route('attendance.create') }}" class="btn btn-sm btn-primary mt-2">+ Input Absensi</a>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="py-4 text-muted">
+                                    <i class="bi bi-clipboard-x opacity-25" style="font-size: 5rem"></i>
+                                    <h5 class="mt-3">Data absensi belum tersedia</h5>
+                                    <p class="small">Belum ada rekaman absensi untuk filter yang dipilih.</p>
+                                    @role('admin,guru')
+                                    <a href="{{ route('attendance.create') }}" class="btn btn-primary mt-2">
+                                        <i class="bi bi-plus-lg me-1"></i>Input Absensi Baru
+                                    </a>
+                                    @endrole
+                                </div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="card-footer d-flex justify-content-between align-items-center">
-            <div class="text-muted" style="font-size:13px">
-                @if($attendances->total() > 0)
-                    Menampilkan {{ $attendances->firstItem() }}-{{ $attendances->lastItem() }} dari {{ $attendances->total() }}
-                @else
-                    Tidak ada data
-                @endif
-            </div>
+        <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center py-3">
+            <div class="text-muted small">Menampilkan <strong>{{ $attendances->firstItem() ?? 0 }} - {{ $attendances->lastItem() ?? 0 }}</strong> dari <strong>{{ $attendances->total() }}</strong> sesi</div>
             {{ $attendances->withQueryString()->links('pagination::bootstrap-5') }}
         </div>
     </div>

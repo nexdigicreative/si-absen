@@ -76,12 +76,26 @@ class Student extends Model
             : 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=8b5cf6&color=fff';
     }
 
+    /**
+     * Calculate attendance percentage.
+     * When used with withCount, avoids N+1 queries.
+     */
     public function getAttendancePercentageAttribute(): float
     {
-        $total = $this->attendanceDetails()->count();
-        $present = $this->attendanceDetails()
-            ->whereIn('status', ['hadir', 'terlambat'])->count();
+        // If counts were preloaded via withCount, use them
+        if (isset($this->attributes['attendance_details_count'])) {
+            $total = (int) $this->attributes['attendance_details_count'];
+            $present = (int) ($this->attributes['present_count'] ?? 0);
+            return $total > 0 ? round($present / $total * 100, 1) : 0;
+        }
 
+        // Fallback: single query with conditional count
+        $result = $this->attendanceDetails()
+            ->selectRaw("COUNT(*) as total, SUM(status IN ('hadir','terlambat')) as present")
+            ->first();
+
+        $total = (int) ($result->total ?? 0);
+        $present = (int) ($result->present ?? 0);
         return $total > 0 ? round($present / $total * 100, 1) : 0;
     }
 }
