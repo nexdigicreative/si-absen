@@ -47,7 +47,7 @@ class QrAttendanceController extends Controller
             }
 
             // Get homeroom teacher as default teacher for this attendance record
-            $teacherId = $student->class?->teacher_id ?? 1;
+            $teacherId = $student->class?->homeroom_teacher_id ?? 1;
 
             $attendance = Attendance::firstOrCreate(
                 [
@@ -98,7 +98,7 @@ class QrAttendanceController extends Controller
         
         // If teacher, prioritize their classes
         if ($user->isGuru()) {
-            $classes = Classes::where('teacher_id', $user->teacher?->id)->orderBy('name')->get();
+            $classes = Classes::where('homeroom_teacher_id', $user->teacher?->id)->orderBy('name')->get();
             if ($classes->isEmpty()) {
                 $classes = Classes::orderBy('name')->get();
             }
