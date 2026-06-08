@@ -80,11 +80,11 @@ class AttendanceTest extends TestCase
             ->assertRedirect(route('attendance.index'));
 
         $this->assertDatabaseHas('attendance', [
-            'date' => today()->toDateString(),
             'class_id' => $this->class->id,
         ]);
 
         $attendance = Attendance::first();
+        $this->assertEquals(today()->toDateString(), $attendance->date->toDateString());
         $this->assertEquals(3, $attendance->details()->count());
     }
 

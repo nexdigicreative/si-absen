@@ -39,7 +39,7 @@ class AttendanceService
             'alfa'       => (int) ($counts->alfa ?? 0),
             'terlambat'  => $terlambat,
             'total'      => $total,
-            'percentage' => $total > 0 ? round(($hadir + $terlambat) / $total * 100, 1) : 0,
+            'percentage' => (float) ($total > 0 ? round(($hadir + $terlambat) / $total * 100, 1) : 0),
         ];
     }
 
@@ -79,16 +79,19 @@ class AttendanceService
     {
         $year ??= now()->year;
 
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $monthSql = $isSqlite ? "cast(strftime('%m', a.date) as integer)" : "MONTH(a.date)";
+
         $rows = DB::table('attendance_details as ad')
             ->join('attendance as a', 'a.id', '=', 'ad.attendance_id')
             ->whereYear('a.date', $year)
             ->selectRaw("
-                MONTH(a.date) as m,
+                {$monthSql} as m,
                 COUNT(*) as total,
                 SUM(ad.status IN ('hadir','terlambat')) as present,
                 SUM(ad.status = 'alfa') as alfa
             ")
-            ->groupByRaw('MONTH(a.date)')
+            ->groupByRaw($monthSql)
             ->get()
             ->keyBy('m'); // key by month
 
@@ -100,7 +103,7 @@ class AttendanceService
 
             return [
                 'month'   => $m,
-                'label'   => \Carbon\Carbon::create(null, $m)->translatedFormat('M'),
+                'label'   => \Carbon\Carbon::create(null, $m, 1)->translatedFormat('M'),
                 'percent' => $total > 0 ? round($present / $total * 100, 1) : 0,
                 'alfa'    => $alfa,
             ];
@@ -171,8 +174,8 @@ class AttendanceService
                 COUNT(*) as total,
                 SUM(ad.status IN ('hadir','terlambat')) as present
             ")
-            ->havingRaw("(present / total * 100) < ?", [$threshold])
-            ->orderByRaw("(present / total * 100) ASC")
+            ->havingRaw("(SUM(ad.status IN ('hadir','terlambat')) / COUNT(*) * 100) < ?", [$threshold])
+            ->orderByRaw("(SUM(ad.status IN ('hadir','terlambat')) / COUNT(*) * 100) ASC")
             ->limit($limit)
             ->get();
 
